@@ -11,17 +11,19 @@ jobs:
     - name: Checkout code
       uses: actions/checkout@v2
 
-    - name: Fetch latest version
-      id: get_latest_version
+    - name: Fetch latest release version
+      id: get_latest_release
       run: |
-        LATEST_TAG=$(git describe --tags `git rev-list --tags --max-count=1`)
-        echo "Latest tag: $LATEST_TAG"
-        echo "LATEST_TAG=$LATEST_TAG" >> $GITHUB_ENV
+        LATEST_RELEASE=$(curl -s -H "Accept: application/vnd.github.v3+json" \
+          https://api.github.com/repos/${{ github.repository }}/releases/latest | \
+          jq -r .tag_name)
+        echo "Latest release: $LATEST_RELEASE"
+        echo "LATEST_RELEASE=$LATEST_RELEASE" >> $GITHUB_ENV
 
     - name: Increment minor version
       id: increment_version
       run: |
-        VERSION=${{ env.LATEST_TAG }}
+        VERSION=${{ env.LATEST_RELEASE }}
         IFS='.' read -r -a VERSION_PARTS <<< "$VERSION"
         MINOR_VERSION=${VERSION_PARTS[1]}
         NEW_MINOR_VERSION=$((MINOR_VERSION + 1))
