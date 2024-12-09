@@ -2,7 +2,8 @@ name: Increment Version
 
 on:
   workflow_dispatch:
-
+  repository_dispatch:
+    types: [auto-release-workflow]
 jobs:
   increment-version:
     runs-on: ubuntu-latest
