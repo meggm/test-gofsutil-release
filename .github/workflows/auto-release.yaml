@@ -1,56 +1,40 @@
-name: Release GoFSUtil
+name: Auto Release
 
 on:
-  workflow_dispatch:
-    inputs:
-      current_version:
-        description: 'Current version of the repository (major.minor.patch), e.g., 1.0.0'
-        required: true
-
-  repository_dispatch:
+  repository_dispatch: # Trigger from another repository
     types: [auto-release-workflow]
 
 jobs:
-  compute-next-version:
+  compute-version:
     runs-on: ubuntu-latest
 
     outputs:
-      next_version: ${{ steps.set_output.outputs.next_version }}
+      next_version: ${{ steps.increment_version.outputs.next_version }}
 
     steps:
-      - name: Extract Current Version
-        id: extract_version
-        run: |
-          # Get current version based on the trigger
-          if [[ "${{ github.event_name }}" == "workflow_dispatch" ]]; then
-            CURRENT_VERSION="${{ github.event.inputs.current_version }}"
-          elif [[ "${{ github.event_name }}" == "repository_dispatch" ]]; then
-            CURRENT_VERSION="${{ github.event.client_payload.current_version }}"
-          fi
+      - name: Checkout Code
+        uses: actions/checkout@v3
 
+      - name: Determine Current Version
+        id: determine_version
+        run: |
+          CURRENT_VERSION=$(git describe --tags --abbrev=0 || echo "0.0.0")
           if [[ ! "$CURRENT_VERSION" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
             echo "Invalid version format: $CURRENT_VERSION"
             exit 1
           fi
-          echo "Current version: $CURRENT_VERSION"
           echo "CURRENT_VERSION=$CURRENT_VERSION" >> $GITHUB_ENV
 
       - name: Increment Major Version
-        id: increment_major
+        id: increment_version
         run: |
-          CURRENT_VERSION="${{ env.CURRENT_VERSION }}"
-          IFS='.' read -r -a VERSION_PARTS <<< "$CURRENT_VERSION"
+          IFS='.' read -r -a VERSION_PARTS <<< "${{ env.CURRENT_VERSION }}"
           NEXT_MAJOR_VERSION=$((VERSION_PARTS[0] + 1))
           NEXT_VERSION="${NEXT_MAJOR_VERSION}.0.0"
-          echo "Next major version: $NEXT_VERSION"
-          echo "NEXT_VERSION=$NEXT_VERSION" >> $GITHUB_ENV
-
-      - name: Set Next Version Output
-        id: set_output
-        run: echo "::set-output name=next_version::${{ env.NEXT_VERSION }}"
+          echo "::set-output name=next_version::$NEXT_VERSION"
 
   release-workflow:
-    needs: compute-next-version
+    needs: compute-version
     uses: dell/common-github-actions/.github/workflows/csm-release-libs.yaml@main
     with:
-      version: ${{ needs.compute-next-version.outputs.next_version }}
+      version: ${{ needs.compute-version.outputs.next_version }}
