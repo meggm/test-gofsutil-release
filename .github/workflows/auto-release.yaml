@@ -1,4 +1,4 @@
-name: Release GoFSUtil
+name: Auto Release GoFSUtil
 
 on:
   workflow_call:
