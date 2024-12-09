@@ -14,6 +14,3 @@ jobs:
   csm-release:
     uses: dell/common-github-actions/.github/workflows/csm-release-libs.yaml@main
     name: Release Go Client Libraries
-    with:
-      version: ${{ github.client_payload.version }}
-    secrets: inherit
