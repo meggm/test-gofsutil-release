@@ -12,7 +12,16 @@ on:
 
 jobs:
   csm-release:
-    uses: dell/common-github-actions/.github/workflows/csm-release-libs.yaml@main
-    name: Release Go Client Libraries
-    with:
-      version: ${{ github.event.client_payload.version }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+
+      - name: Extract version from payload
+        id: extract_version
+        run: echo "Version:${{ github.event.client_payload.version }}"
+
+      - name: Trigger reusable workflow
+        uses: dell/common-github-actions/.github/workflows/csm-release-libs.yaml@main
+        with:
+          version: ${{ github.event.client_payload.version }}
