@@ -8,7 +8,46 @@ on:  # yamllint disable-line rule:truthy
       version:
         description: 'Version to release (major, minor, patch) Ex: 1.0.0'
         required: true
+  repository_dispatch:
+    types: [auto-release-workflow]
 jobs:
+  increment-version:
+    runs-on: ubuntu-latest
+
+    outputs:
+      new_version: ${{ steps.set_output.outputs.new_version }}
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v2
+
+    - name: Fetch latest release version
+      id: get_latest_release
+      run: |
+        LATEST_RELEASE=$(curl -s -H "Accept: application/vnd.github.v3+json" \
+          https://api.github.com/repos/${{ github.repository }}/releases/latest | \
+          jq -r .tag_name)
+        echo "Latest release: $LATEST_RELEASE"
+        echo "LATEST_RELEASE=$LATEST_RELEASE" >> $GITHUB_ENV
+
+    - name: Increment minor version
+      id: increment_version
+      run: |
+        VERSION=${{ env.LATEST_RELEASE }}
+        IFS='.' read -r -a VERSION_PARTS <<< "$VERSION"
+        MINOR_VERSION=${VERSION_PARTS[1]}
+        NEW_MINOR_VERSION=$((MINOR_VERSION + 1))
+        NEW_VERSION="${VERSION_PARTS[0]}.$NEW_MINOR_VERSION.${VERSION_PARTS[2]}"
+        echo "New version: $NEW_VERSION"
+        echo "NEW_VERSION=$NEW_VERSION" >> $GITHUB_ENV
+
+    - name: Set output
+      id: set_output
+      run: echo "::set-output name=new_version::${{ env.NEW_VERSION }}"
+
   csm-release:
+    needs: increment-version
     uses: dell/common-github-actions/.github/workflows/csm-release-libs.yaml@main
     name: Release Go Client Libraries
+    with:
+      version: ${{ needs.increment-version.outputs.new_version }}  
