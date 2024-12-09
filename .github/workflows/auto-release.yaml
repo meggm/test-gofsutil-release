@@ -5,36 +5,5 @@ on:
     types: [auto-release-workflow]
 
 jobs:
-  compute-version:
-    runs-on: ubuntu-latest
-
-    outputs:
-      next_version: ${{ steps.increment_version.outputs.next_version }}
-
-    steps:
-      - name: Checkout Code
-        uses: actions/checkout@v3
-
-      - name: Determine Current Version
-        id: determine_version
-        run: |
-          CURRENT_VERSION=$(git describe --tags --abbrev=0 || echo "0.0.0")
-          if [[ ! "$CURRENT_VERSION" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
-            echo "Invalid version format: $CURRENT_VERSION"
-            exit 1
-          fi
-          echo "CURRENT_VERSION=$CURRENT_VERSION" >> $GITHUB_ENV
-
-      - name: Increment Major Version
-        id: increment_version
-        run: |
-          IFS='.' read -r -a VERSION_PARTS <<< "${{ env.CURRENT_VERSION }}"
-          NEXT_MAJOR_VERSION=$((VERSION_PARTS[0] + 1))
-          NEXT_VERSION="${NEXT_MAJOR_VERSION}.0.0"
-          echo "::set-output name=next_version::$NEXT_VERSION"
-
   release-workflow:
-    needs: compute-version
     uses: dell/common-github-actions/.github/workflows/csm-release-libs.yaml@main
-    with:
-      version: ${{ needs.compute-version.outputs.next_version }}
