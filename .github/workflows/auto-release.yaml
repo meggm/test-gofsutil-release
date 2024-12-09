@@ -1,56 +1,56 @@
 name: Release GoFSUtil
 
 on:
-  workflow_call:
   workflow_dispatch:
     inputs:
-      version:
-        description: 'Version to release (major, minor, patch) Ex: 1.0.0'
+      current_version:
+        description: 'Current version of the repository (major.minor.patch), e.g., 1.0.0'
         required: true
+
   repository_dispatch:
     types: [auto-release-workflow]
 
 jobs:
-  increment-version:
+  compute-next-version:
     runs-on: ubuntu-latest
 
     outputs:
-      new_version: ${{ steps.set_output.outputs.new_version }}
+      next_version: ${{ steps.set_output.outputs.next_version }}
 
     steps:
-      - name: Checkout code
-        uses: actions/checkout@v3
-
-      - name: Install jq
-        run: sudo apt-get install jq
-
-      - name: Fetch latest release version
-        id: get_latest_release
+      - name: Extract Current Version
+        id: extract_version
         run: |
-          LATEST_RELEASE=$(curl -s -H "Accept: application/vnd.github.v3+json" \
-            https://api.github.com/repos/${{ github.repository }}/releases/latest | \
-            jq -r .tag_name)
-          echo "Latest release: $LATEST_RELEASE"
-          echo "LATEST_RELEASE=$LATEST_RELEASE" >> $GITHUB_ENV
+          # Get current version based on the trigger
+          if [[ "${{ github.event_name }}" == "workflow_dispatch" ]]; then
+            CURRENT_VERSION="${{ github.event.inputs.current_version }}"
+          elif [[ "${{ github.event_name }}" == "repository_dispatch" ]]; then
+            CURRENT_VERSION="${{ github.event.client_payload.current_version }}"
+          fi
 
-      - name: Increment minor version
-        id: increment_version
+          if [[ ! "$CURRENT_VERSION" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+            echo "Invalid version format: $CURRENT_VERSION"
+            exit 1
+          fi
+          echo "Current version: $CURRENT_VERSION"
+          echo "CURRENT_VERSION=$CURRENT_VERSION" >> $GITHUB_ENV
+
+      - name: Increment Major Version
+        id: increment_major
         run: |
-          VERSION=${{ env.LATEST_RELEASE }}
-          IFS='.' read -r -a VERSION_PARTS <<< "$VERSION"
-          MINOR_VERSION=${VERSION_PARTS[1]}
-          NEW_MINOR_VERSION=$((MINOR_VERSION + 1))
-          NEW_VERSION="${VERSION_PARTS[0]}.$NEW_MINOR_VERSION.0"
-          echo "New version: $NEW_VERSION"
-          echo "NEW_VERSION=$NEW_VERSION" >> $GITHUB_ENV
+          CURRENT_VERSION="${{ env.CURRENT_VERSION }}"
+          IFS='.' read -r -a VERSION_PARTS <<< "$CURRENT_VERSION"
+          NEXT_MAJOR_VERSION=$((VERSION_PARTS[0] + 1))
+          NEXT_VERSION="${NEXT_MAJOR_VERSION}.0.0"
+          echo "Next major version: $NEXT_VERSION"
+          echo "NEXT_VERSION=$NEXT_VERSION" >> $GITHUB_ENV
 
-      - name: Set output
+      - name: Set Next Version Output
         id: set_output
-        run: echo "::set-output name=new_version::${{ env.NEW_VERSION }}"
+        run: echo "::set-output name=next_version::${{ env.NEXT_VERSION }}"
 
-  csm-release:
-    needs: increment-version
+  release-workflow:
+    needs: compute-next-version
     uses: dell/common-github-actions/.github/workflows/csm-release-libs.yaml@main
-    name: Release Go Client Libraries
     with:
-      version: ${{ needs.increment-version.outputs.new_version }}
+      version: ${{ needs.compute-next-version.outputs.next_version }}
