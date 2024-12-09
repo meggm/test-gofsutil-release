@@ -11,7 +11,14 @@ on:
     types: [auto-release-workflow]
 
 jobs:
+  increment-version:
+    runs-on: ubuntu-latest
+    outputs:
+      version: ${{ github.client_payload.version }}
   csm-release:
+    needs: increment-version
     uses: dell/common-github-actions/.github/workflows/csm-release-libs.yaml@main
+    name: Release Go Client Libraries
     with:
-      version: ${{ github.event.client_payload.version }}
+      version: ${{ needs.increment-version.outputs.version }}
+    secrets: inherit
