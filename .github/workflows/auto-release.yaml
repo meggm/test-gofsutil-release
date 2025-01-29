@@ -1,17 +1,12 @@
-name: Auto Release GoFSUtil
-
-on:
-  workflow_call:
+name: Auto Release CSM go lib gofsutil
+on: # yamllint disable-line rule:truth
   workflow_dispatch:
-    inputs:
-      version:
-        description: 'Version to release (major, minor, patch) Ex: 1.0.0'
-        required: true
   repository_dispatch:
-    types: [auto-release-workflow]
+    types: [release-go-libs]
 
 jobs:
   csm-release:
     uses: meggm/common-github-actions-test/.github/workflows/csm-release-libs.yaml@main
-    name: Release Go Client Libraries
+    with:
+      version: "minor"
     secrets: inherit
